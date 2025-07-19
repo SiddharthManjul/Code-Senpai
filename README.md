@@ -92,24 +92,3 @@ The project aims to build a **data oracle system** that provides **authentic, va
   Accurate data inputs to AI and smart contracts prevent costly errors, fraud, and legal liabilities.  
 
 This project stands at the intersection of blockchain, AI, and data management, offering a trust-enhancing infrastructure critical for the future of AI-driven decision-making and decentralized applications. The combination of validated data oracles and a blockchain-secured marketplace can transform how data is sourced, verified, and used across industries.
-
-[1] https://www.oracle.com/in/blockchain/
-[2] https://chain.link/education/blockchain-oracles
-[3] https://en.wikipedia.org/wiki/Blockchain_oracle
-[4] https://www.oracle.com/in/blockchain/what-is-blockchain/
-[5] https://hacken.io/discover/blockchain-oracles/
-[6] https://econone.com/data-analytics/resources/blogs/ai-data-validation/
-[7] https://pixelplex.io/blog/blockchain-analytics-explained/
-[8] https://akitra.com/cybersecurity-implications-of-data-poisoning-in-ai-models/
-[9] https://101blockchains.com/top-blockchain-oracles/
-[10] https://www.techtarget.com/searchenterpriseai/feature/9-data-quality-issues-that-can-sideline-AI-projects
-[11] https://tokenminds.co/blog/knowledge-base/decentralized-data-marketplace
-[12] https://www.ibm.com/think/topics/data-poisoning
-[13] https://www.oracle.com/in/blockchain/cloud-platform/
-[14] https://firsteigen.com/blog/validating-data-on-databricks/
-[15] https://pmc.ncbi.nlm.nih.gov/articles/PMC11013391/
-[16] https://www.technewsworld.com/story/poisoned-data-in-ai-training-opens-back-doors-to-system-manipulation-179383.html
-[17] https://www.geeksforgeeks.org/computer-networks/blockchain-oracle-types-uses-and-how-it-works/
-[18] https://www.linkedin.com/advice/1/what-common-data-validation-challenges-solutions
-[19] https://www.sciencedirect.com/science/article/pii/S2542660523000458
-[20] https://provost.wsu.edu/challenges-of-ai/
