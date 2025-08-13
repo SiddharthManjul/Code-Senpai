@@ -24,9 +24,9 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     color: 'text-orange-400'
   },
   {
-    name: 'gpt-4',
+    name: 'gpt-5',
     provider: 'openai',
-    modelName: 'gpt-4o',
+    modelName: 'gpt-5-nano',
     displayName: 'GPT-4o',
     description: 'OpenAI\'s most advanced multimodal model',
     color: 'text-green-400'
@@ -34,16 +34,16 @@ export const MODEL_CONFIGS: ModelConfig[] = [
   {
     name: 'deepseek-chat',
     provider: 'deepseek',
-    modelName: 'deepseek-chat',
+    modelName: 'deepseek-r1-distill-llama-70b',
     displayName: 'DeepSeek Chat',
     description: 'DeepSeek\'s conversational AI model',
     color: 'text-purple-400'
   },
   {
-    name: 'llama-3',
+    name: 'llama-4',
     provider: 'llama',
-    modelName: 'llama-3.1-70b-versatile',
-    displayName: 'Llama 3.1 70B',
+    modelName: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+    displayName: 'Llama 4 17B',
     description: 'Meta\'s open-source large language model',
     color: 'text-blue-400'
   }
