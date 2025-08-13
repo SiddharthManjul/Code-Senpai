@@ -14,13 +14,19 @@
     "@langchain/groq": "^0.2.3",
     "@langchain/langgraph": "^0.4.4",
     "@langchain/openai": "^0.6.7",
+    "@prisma/client": "^6.14.0",
+    "@types/readline-sync": "^1.4.8",
+    "autoprefixer": "^10.4.21",
     "langchain": "^0.3.30",
     "lucide-react": "^0.539.0",
     "next": "15.4.6",
     "nodemon": "^3.1.10",
+    "postcss": "^8.5.6",
+    "prisma": "^6.14.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "readline-sync": "^1.4.10"
+    "readline-sync": "^1.4.10",
+    "tsx": "^4.20.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
