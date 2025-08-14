@@ -1,28 +1,59 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { ChatService } from '../../../lib/services/chatService';
+import { NextResponse } from 'next/server';
+import { ChatService } from '@/lib/services/chatService';
+import { AIServiceManager } from '@/ai/modelServices/serviceManager';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const aiManager = new AIServiceManager();
+
+export async function POST(request: Request) {
   try {
-    if (req.method === 'GET') {
-      const chats = await ChatService.getChats();
-      return res.status(200).json(chats);
+    const { chatId, message, model } = await request.json();
+
+    if (!chatId || !message || !model) {
+      return NextResponse.json(
+        { error: 'Chat ID, message, and model are required' },
+        { status: 400 }
+      );
     }
 
-    if (req.method === 'POST') {
-      const { title, model } = req.body;
-      
-      if (!title || !model) {
-        return res.status(400).json({ error: 'Title and model are required' });
-      }
-
-      const chat = await ChatService.createChat(title, model);
-      return res.status(201).json(chat);
+    // Get chat history
+    const chat = await ChatService.getChatById(chatId);
+    if (!chat) {
+      return NextResponse.json(
+        { error: 'Chat not found' },
+        { status: 404 }
+      );
     }
 
-    res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    // Add user message to database
+    const userMessage = await ChatService.addMessage(chatId, 'user', message);
+
+    // Convert to LangChain format and get AI response
+    const chatHistory = ChatService.messagesToLangChain([...chat.messages, userMessage]);
+    const aiResponse = await aiManager.getResponse(model, chatHistory);
+
+    // Add AI response to database
+    if (typeof aiResponse === 'object' && aiResponse !== null && 'content' in aiResponse) {
+      const assistantMessage = await ChatService.addMessage(
+        chatId,
+        'assistant',
+        typeof aiResponse.content === 'string' ? aiResponse.content : String(aiResponse.content)
+      );
+
+      return NextResponse.json({
+        userMsg: userMessage,
+        assistantMsg: assistantMessage
+      });
+    }
+
+    throw new Error('AI response does not have a valid content property');
   } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Chat API Error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to process message',
+        details: error instanceof Error ? error.message : String(error)
+      },
+      { status: 500 }
+    );
   }
 }

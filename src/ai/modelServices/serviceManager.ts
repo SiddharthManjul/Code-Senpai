@@ -3,6 +3,8 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 export type ModelProvider = 'claude' | 'openai' | 'deepseek' | 'llama';
 
@@ -89,7 +91,7 @@ export class AIServiceManager {
     this.models.set('llama-3', new ChatOpenAI({
       modelName: "llama-3.1-70b-versatile",
       temperature: 0.7,
-      openAIApiKey: process.env.GROQ_API_KEY,
+      openAIApiKey: process.env.LLAMA_API_KEY,
       maxTokens: 4096,
       configuration: {
         baseURL: "https://api.groq.com/openai/v1",
