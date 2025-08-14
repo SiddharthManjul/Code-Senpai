@@ -215,7 +215,7 @@ const DevChatInterface = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Terminal className="w-6 h-6 text-cyan-400" />
-              <h1 className="text-xl font-bold">DevChat AI</h1>
+              <h1 className="text-xl font-bold">Code Senpai</h1>
             </div>
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -401,7 +401,7 @@ const DevChatInterface = () => {
           <div className="flex-1 flex items-center justify-center text-gray-500">
             <div className="text-center">
               <Terminal className="w-12 h-12 mx-auto mb-4 text-cyan-400" />
-              <h3 className="text-xl mb-2">Welcome to DevChat AI</h3>
+              <h3 className="text-xl mb-2">Welcome to Code Senpai</h3>
               <p>Select a chat or create a new one to get started</p>
             </div>
           </div>
