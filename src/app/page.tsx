@@ -299,31 +299,61 @@ const DevChatInterface = () => {
     }
   };
 
-  function getModelIcon(arg0: string): React.ReactNode {
-    throw new Error("Function not implemented.");
-  }
+  const getModelIcon = (provider: string) => {
+    switch (provider) {
+      case "claude":
+        return <Bot className="w-4 h-4 text-orange-400" />;
+      case "openai":
+        return <Zap className="w-4 h-4 text-green-400" />;
+      case "deepseek":
+        return <Code2 className="w-4 h-4 text-purple-400" />;
+      case "llama":
+        return <Terminal className="w-4 h-4 text-blue-400" />;
+      default:
+        return <Terminal className="w-4 h-4 text-gray-400" />;
+    }
+  };
 
-  function formatMessageContent(content: string): { __html: string } {
-    // Basic formatting: escape HTML, convert code blocks and line breaks
-    let html = content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const formatMessageContent = (content: string): { __html: string } => {
+    // Escape HTML first
+    let html = content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
-    // Convert code blocks (```code```)
-    html = html.replace(/```([\s\S]*?)```/g, (_, code) => {
-      return `<pre class="bg-gray-800 text-green-300 rounded p-2 overflow-x-auto"><code>${code
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")}</code></pre>`;
+    // Convert markdown code blocks with optional language
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+      const langClass = lang ? `language-${lang}` : "";
+      return `<pre class="bg-gray-800 rounded-lg p-4 my-2 overflow-x-auto"><code class="${langClass}">${code.trim()}</code></pre>`;
     });
 
-    // Convert inline code (`code`)
-    html = html.replace(/`([^`]+)`/g, (_, code) => {
-      return `<code class="bg-gray-700 text-cyan-300 rounded px-1">${code}</code>`;
-    });
+    // Convert inline code
+    html = html.replace(
+      /`([^`]+)`/g,
+      '<code class="bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>'
+    );
 
-    // Convert line breaks
-    html = html.replace(/\n/g, "<br />");
+    // Convert links
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" class="text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+
+    // Convert line breaks (handle both \n and \r\n)
+    html = html.replace(/\r?\n/g, "<br />");
+
+    // Convert bold text
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+
+    // Convert italic text
+    html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
 
     return { __html: html };
-  }
+  };
   // ... [rest of the helper functions remain the same]
 
   return (
