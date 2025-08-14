@@ -103,31 +103,15 @@ const DevChatInterface = () => {
 
       const response = await fetch("/api/chats");
 
-      // First check if the response is ok (status 200-299)
       if (!response.ok) {
-        // Try to get error details from response if available
-        let errorDetails = "";
-        try {
-          const errorData = await response.json();
-          errorDetails = errorData.message || JSON.stringify(errorData);
-        } catch (e) {
-          errorDetails = response.statusText;
-        }
-        throw new Error(
-          `Request failed with status ${response.status}: ${errorDetails}`
-        );
+        // Try to get error details from response
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.message || response.statusText;
+        throw new Error(`Request failed: ${response.status} - ${errorMessage}`);
       }
 
-      // Check if response has content
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Received non-JSON response from server");
-      }
-
-      // Parse the response
       const data = await response.json();
 
-      // Validate the data structure
       if (!Array.isArray(data)) {
         throw new Error("Invalid data format received from server");
       }
@@ -260,7 +244,7 @@ const DevChatInterface = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`/api/chats/${chatId}`, {
+      const response = await fetch(`/api/chats?chatId=${chatId}`, {
         method: "DELETE",
       });
 
@@ -288,7 +272,7 @@ const DevChatInterface = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`/api/chats/${chatId}`, {
+      const response = await fetch(`/api/chats?chatId=${chatId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
