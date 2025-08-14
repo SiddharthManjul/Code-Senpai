@@ -1,4 +1,5 @@
 // lib/services/aiService.ts
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
@@ -15,14 +16,14 @@ export interface ModelConfig {
 }
 
 export const MODEL_CONFIGS: ModelConfig[] = [
-  {
-    name: 'claude-sonnet',
-    provider: 'claude',
-    modelName: 'claude-sonnet-4-20250514',
-    displayName: 'Claude Sonnet 4',
-    description: 'Anthropic\'s smart, efficient model for everyday use',
-    color: 'text-orange-400'
-  },
+  // {
+  //   name: 'claude-sonnet',
+  //   provider: 'claude',
+  //   modelName: 'claude-sonnet-4-20250514',
+  //   displayName: 'Claude Sonnet 4',
+  //   description: 'Anthropic\'s smart, efficient model for everyday use',
+  //   color: 'text-orange-400'
+  // },
   {
     name: 'gpt-5',
     provider: 'openai',
@@ -58,12 +59,12 @@ export class AIServiceManager {
 
   private initializeModels() {
     // Claude
-    this.models.set('claude-sonnet', new ChatAnthropic({
-      modelName: "claude-sonnet-4-20250514",
-      temperature: 0.7,
-      anthropicApiKey: process.env.CLAUDE_API_KEY,
-      maxTokens: 4096,
-    }));
+    // this.models.set('claude-sonnet', new ChatAnthropic({
+    //   modelName: "claude-sonnet-4-20250514",
+    //   temperature: 0.7,
+    //   anthropicApiKey: process.env.CLAUDE_API_KEY,
+    //   maxTokens: 4096,
+    // }));
 
     // OpenAI GPT-4o
     this.models.set('gpt-4', new ChatOpenAI({

@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+
 // Define MessageRole type manually
 export type MessageRole = 'system' | 'user' | 'assistant';
 
@@ -18,7 +19,7 @@ export interface ChatWithMessages {
 }
 
 export class ChatService {
-  static async createChat(title: string, model: string) {
+  static async createChat(title: string, model: string): Promise<ChatWithMessages> {
     return await prisma.chat.create({
       data: {
         title,
@@ -38,7 +39,7 @@ export class ChatService {
     });
   }
 
-  static async getChats() {
+  static async getChats(): Promise<ChatWithMessages[]> {
     return await prisma.chat.findMany({
       orderBy: { updatedAt: 'desc' },
       include: {
@@ -79,15 +80,26 @@ export class ChatService {
   }
 
   static async deleteChat(id: string) {
+    // First delete all messages to avoid foreign key constraint errors
+    await prisma.message.deleteMany({
+      where: { chatId: id },
+    });
+
+    // Then delete the chat
     return await prisma.chat.delete({
       where: { id },
     });
   }
 
-  static async updateChatTitle(id: string, title: string) {
+  static async updateChatTitle(id: string, title: string): Promise<ChatWithMessages> {
     return await prisma.chat.update({
       where: { id },
       data: { title },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
   }
 

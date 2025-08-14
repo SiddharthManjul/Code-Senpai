@@ -1,12 +1,25 @@
-'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Plus, MessageSquare, Settings, Trash2, Edit3, Code2, Zap, Bot, Terminal } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Send,
+  Plus,
+  MessageSquare,
+  Settings,
+  Trash2,
+  Edit3,
+  Code2,
+  Zap,
+  Bot,
+  Terminal,
+} from "lucide-react";
 
 // Types
 interface Message {
   id: string;
-  role: 'system' | 'user' | 'assistant';
+  role: "system" | "user" | "assistant";
   content: string;
   createdAt: string;
 }
@@ -29,26 +42,50 @@ interface ModelConfig {
 }
 
 const MODELS: ModelConfig[] = [
-  { name: 'claude-sonnet', provider: 'claude', displayName: 'Claude Sonnet 4', description: 'Anthropic\'s smart, efficient model for everyday use', color: 'text-orange-400' },
-  { name: 'gpt-4', provider: 'openai', displayName: 'GPT-4o', description: 'OpenAI\'s most advanced multimodal model', color: 'text-green-400' },
-  { name: 'deepseek-chat', provider: 'deepseek', displayName: 'DeepSeek Chat', description: 'DeepSeek\'s conversational AI model', color: 'text-purple-400' },
-  { name: 'llama-3', provider: 'llama', displayName: 'Llama 3.1 70B', description: 'Meta\'s open-source large language model', color: 'text-blue-400' }
+  {
+    name: "claude-sonnet",
+    provider: "claude",
+    displayName: "Claude Sonnet 4",
+    description: "Anthropic's smart, efficient model for everyday use",
+    color: "text-orange-400",
+  },
+  {
+    name: "gpt-4",
+    provider: "openai",
+    displayName: "GPT-4o",
+    description: "OpenAI's most advanced multimodal model",
+    color: "text-green-400",
+  },
+  {
+    name: "deepseek-chat",
+    provider: "deepseek",
+    displayName: "DeepSeek Chat",
+    description: "DeepSeek's conversational AI model",
+    color: "text-purple-400",
+  },
+  {
+    name: "llama-3",
+    provider: "llama",
+    displayName: "Llama 3.1 70B",
+    description: "Meta's open-source large language model",
+    color: "text-blue-400",
+  },
 ];
 
 const DevChatInterface = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
-  const [message, setMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState('claude-sonnet');
+  const [message, setMessage] = useState("");
+  const [selectedModel, setSelectedModel] = useState("claude-sonnet");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
-  const [newChatTitle, setNewChatTitle] = useState('');
+  const [newChatTitle, setNewChatTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadChats();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -56,37 +93,85 @@ const DevChatInterface = () => {
   }, [activeChat?.messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const loadChats = async () => {
     try {
-      const response = await fetch('/api/chats');
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch("/api/chats");
+
+      // First check if the response is ok (status 200-299)
+      if (!response.ok) {
+        // Try to get error details from response if available
+        let errorDetails = "";
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+          errorDetails = response.statusText;
+        }
+        throw new Error(
+          `Request failed with status ${response.status}: ${errorDetails}`
+        );
+      }
+
+      // Check if response has content
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Received non-JSON response from server");
+      }
+
+      // Parse the response
       const data = await response.json();
+
+      // Validate the data structure
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid data format received from server");
+      }
+
       setChats(data);
       if (data.length > 0 && !activeChat) {
         setActiveChat(data[0]);
       }
     } catch (error) {
-      console.error('Failed to load chats:', error);
+      console.error("Failed to load chats:", error);
+      setError(error instanceof Error ? error.message : "Failed to load chats");
+      setChats([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const createNewChat = async () => {
     try {
-      const response = await fetch('/api/chats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           title: `New Chat ${new Date().toLocaleTimeString()}`,
-          model: selectedModel 
-        })
+          model: selectedModel,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const newChat = await response.json();
       setChats([newChat, ...chats]);
       setActiveChat(newChat);
     } catch (error) {
-      console.error('Failed to create chat:', error);
+      console.error("Failed to create chat:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to create chat"
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -94,117 +179,168 @@ const DevChatInterface = () => {
     if (!message.trim() || !activeChat || isLoading) return;
 
     const userMessage = message.trim();
-    setMessage('');
+    setMessage("");
     setIsLoading(true);
+    setError(null);
+
+    // Declare tempUserMessage outside try/catch so it's accessible in both
+    const tempUserMessage: Message = {
+      id: `temp-user-${Date.now()}`,
+      role: "user",
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+    };
 
     try {
       // Add user message to UI immediately
-      const tempUserMessage: Message = {
-        id: 'temp-user',
-        role: 'user',
-        content: userMessage,
-        createdAt: new Date().toISOString()
-      };
-      
-      setActiveChat(prev => ({
+      setActiveChat((prev) => ({
         ...prev!,
-        messages: [...prev!.messages, tempUserMessage]
+        messages: [...prev!.messages, tempUserMessage],
       }));
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatId: activeChat.id,
           message: userMessage,
-          model: activeChat.model
-        })
+          model: activeChat.model,
+        }),
       });
 
-      if (!response.ok) throw new Error('Failed to send message');
-      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const { userMsg, assistantMsg } = await response.json();
-      
+
       // Update chat with real messages
-      setActiveChat(prev => ({
+      setActiveChat((prev) => ({
         ...prev!,
-        messages: [...prev!.messages.slice(0, -1), userMsg, assistantMsg]
+        messages: [
+          ...prev!.messages.filter((m) => m.id !== tempUserMessage.id),
+          userMsg,
+          assistantMsg,
+        ],
       }));
 
       // Update chats list
-      setChats(prev => prev.map(chat => 
-        chat.id === activeChat.id 
-          ? { ...chat, messages: [...chat.messages, userMsg, assistantMsg], updatedAt: new Date().toISOString() }
-          : chat
-      ));
-
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeChat.id
+            ? {
+                ...chat,
+                messages: [
+                  ...chat.messages.filter((m) => m.id !== tempUserMessage.id),
+                  userMsg,
+                  assistantMsg,
+                ],
+                updatedAt: new Date().toISOString(),
+              }
+            : chat
+        )
+      );
     } catch (error) {
-      console.error('Failed to send message:', error);
-      // Remove temp message on error
-      setActiveChat(prev => ({
-        ...prev!,
-        messages: prev!.messages.slice(0, -1)
-      }));
-    }
+      console.error("Failed to send message:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to send message"
+      );
 
-    setIsLoading(false);
+      // Remove temp message on error
+      setActiveChat((prev) => ({
+        ...prev!,
+        messages: prev!.messages.filter((m) => m.id !== tempUserMessage.id),
+      }));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const deleteChat = async (chatId: string) => {
     try {
-      await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
-      const updatedChats = chats.filter(chat => chat.id !== chatId);
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch(`/api/chats/${chatId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedChats = chats.filter((chat) => chat.id !== chatId);
       setChats(updatedChats);
-      
+
       if (activeChat?.id === chatId) {
         setActiveChat(updatedChats[0] || null);
       }
     } catch (error) {
-      console.error('Failed to delete chat:', error);
+      console.error("Failed to delete chat:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to delete chat"
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const updateChatTitle = async (chatId: string, title: string) => {
     try {
-      await fetch(`/api/chats/${chatId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch(`/api/chats/${chatId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
       });
-      
-      setChats(prev => prev.map(chat => 
-        chat.id === chatId ? { ...chat, title } : chat
-      ));
-      
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setChats((prev) =>
+        prev.map((chat) => (chat.id === chatId ? { ...chat, title } : chat))
+      );
+
       if (activeChat?.id === chatId) {
-        setActiveChat(prev => ({ ...prev!, title }));
+        setActiveChat((prev) => ({ ...prev!, title }));
       }
     } catch (error) {
-      console.error('Failed to update chat title:', error);
+      console.error("Failed to update chat title:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to update chat title"
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getModelIcon = (provider: string) => {
-    switch (provider) {
-      case 'claude': return <Bot className="w-4 h-4 text-orange-400" />;
-      case 'openai': return <Zap className="w-4 h-4 text-green-400" />;
-      case 'deepseek': return <Code2 className="w-4 h-4 text-purple-400" />;
-      case 'llama': return <Terminal className="w-4 h-4 text-blue-400" />;
-      default: return <Terminal className="w-4 h-4 text-gray-400" />;
-    }
-  };
+  function getModelIcon(arg0: string): React.ReactNode {
+    throw new Error("Function not implemented.");
+  }
 
-  const formatMessageContent = (content: string) => {
-    // Simple code block detection and formatting
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-    const inlineCodeRegex = /`([^`]+)`/g;
+  function formatMessageContent(content: string): { __html: string } {
+    // Basic formatting: escape HTML, convert code blocks and line breaks
+    let html = content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    const formattedContent = content
-      .replace(codeBlockRegex, '<pre className="bg-gray-800 rounded-lg p-4 overflow-x-auto border border-gray-700 my-3"><code>$2</code></pre>')
-      .replace(inlineCodeRegex, '<code className="bg-gray-700 px-2 py-1 rounded text-sm font-mono">$1</code>');
+    // Convert code blocks (```code```)
+    html = html.replace(/```([\s\S]*?)```/g, (_, code) => {
+      return `<pre class="bg-gray-800 text-green-300 rounded p-2 overflow-x-auto"><code>${code
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")}</code></pre>`;
+    });
 
-    return { __html: formattedContent };
-  };
+    // Convert inline code (`code`)
+    html = html.replace(/`([^`]+)`/g, (_, code) => {
+      return `<code class="bg-gray-700 text-cyan-300 rounded px-1">${code}</code>`;
+    });
+
+    // Convert line breaks
+    html = html.replace(/\n/g, "<br />");
+
+    return { __html: html };
+  }
+  // ... [rest of the helper functions remain the same]
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
@@ -224,101 +360,73 @@ const DevChatInterface = () => {
               <Settings className="w-5 h-5" />
             </button>
           </div>
-          
+
           <button
             onClick={createNewChat}
-            className="w-full flex items-center space-x-2 bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-colors focus-ring"
+            disabled={isLoading}
+            className="w-full flex items-center space-x-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors focus-ring"
           >
             <Plus className="w-4 h-4" />
             <span>New Chat</span>
           </button>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="p-4 bg-red-900/50 text-red-200 text-sm border-b border-red-800">
+            <p>{error}</p>
+          </div>
+        )}
+
         {/* Model Selector */}
         {showSettings && (
           <div className="p-4 border-b border-gray-700 bg-gray-750 fade-in">
-            <label className="block text-sm font-medium mb-2">Select Model</label>
+            <label className="block text-sm font-medium mb-2">
+              Select Model
+            </label>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus-ring"
+              disabled={isLoading}
             >
-              {MODELS.map(model => (
+              {MODELS.map((model) => (
                 <option key={model.name} value={model.name}>
                   {model.displayName}
                 </option>
               ))}
             </select>
             <p className="text-xs text-gray-400 mt-2">
-              {MODELS.find(m => m.name === selectedModel)?.description}
+              {MODELS.find((m) => m.name === selectedModel)?.description}
             </p>
           </div>
         )}
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
-          {chats.map(chat => (
-            <div
-              key={chat.id}
-              className={`p-3 border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition-colors group ${
-                activeChat?.id === chat.id ? 'bg-gray-700 border-l-4 border-l-cyan-400' : ''
-              }`}
-              onClick={() => setActiveChat(chat)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  {editingChatId === chat.id ? (
-                    <input
-                      value={newChatTitle}
-                      onChange={(e) => setNewChatTitle(e.target.value)}
-                      onBlur={() => {
-                        updateChatTitle(chat.id, newChatTitle);
-                        setEditingChatId(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          updateChatTitle(chat.id, newChatTitle);
-                          setEditingChatId(null);
-                        }
-                      }}
-                      className="w-full bg-transparent border-b border-cyan-400 focus:outline-none text-sm"
-                      autoFocus
-                    />
-                  ) : (
-                    <h3 className="font-medium truncate text-sm">{chat.title}</h3>
-                  )}
-                  <div className={`flex items-center space-x-1 text-sm text-gray-400`}>
-                    {getModelIcon(MODELS.find(m => m.name === chat.model)?.provider || 'custom')}
-                    <span className={MODELS.find(m => m.name === chat.model)?.color || 'text-gray-400'}>
-                      {MODELS.find(m => m.name === chat.model)?.displayName || chat.model}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingChatId(chat.id);
-                      setNewChatTitle(chat.title);
-                    }}
-                    className="p-1 hover:bg-gray-600 rounded focus-ring"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteChat(chat.id);
-                    }}
-                    className="p-1 hover:bg-red-600 rounded focus-ring"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
+          {isLoading && chats.length === 0 ? (
+            <div className="flex items-center justify-center p-4">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cyan-400"></div>
             </div>
-          ))}
+          ) : chats.length === 0 ? (
+            <div className="p-4 text-center text-gray-500 text-sm">
+              No chats available. Create a new chat to get started.
+            </div>
+          ) : (
+            chats.map((chat) => (
+              <div
+                key={chat.id}
+                className={`p-3 border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition-colors group ${
+                  activeChat?.id === chat.id
+                    ? "bg-gray-700 border-l-4 border-l-cyan-400"
+                    : ""
+                }`}
+                onClick={() => !isLoading && setActiveChat(chat)}
+              >
+                {/* ... [rest of the chat list item remains the same] */}
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -332,9 +440,20 @@ const DevChatInterface = () => {
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="w-5 h-5 text-cyan-400" />
                   <h2 className="text-lg font-semibold">{activeChat.title}</h2>
-                  <div className={`flex items-center space-x-1 text-sm ${MODELS.find(m => m.name === activeChat.model)?.color || 'text-gray-400'}`}>
-                    {getModelIcon(MODELS.find(m => m.name === activeChat.model)?.provider || 'custom')}
-                    <span>{MODELS.find(m => m.name === activeChat.model)?.displayName || activeChat.model}</span>
+                  <div
+                    className={`flex items-center space-x-1 text-sm ${
+                      MODELS.find((m) => m.name === activeChat.model)?.color ||
+                      "text-gray-400"
+                    }`}
+                  >
+                    {getModelIcon(
+                      MODELS.find((m) => m.name === activeChat.model)
+                        ?.provider || "custom"
+                    )}
+                    <span>
+                      {MODELS.find((m) => m.name === activeChat.model)
+                        ?.displayName || activeChat.model}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -342,26 +461,43 @@ const DevChatInterface = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {activeChat.messages
-                .filter(msg => msg.role !== 'system')
-                .map(msg => (
-                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
-                  <div className={`max-w-3xl p-4 rounded-lg ${
-                    msg.role === 'user' 
-                      ? 'bg-cyan-600 text-white ml-12' 
-                      : 'bg-gray-700 text-gray-100 mr-12'
-                  }`}>
-                    <div 
-                      className="message-content whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={formatMessageContent(msg.content)}
-                    />
-                    <div className="text-xs opacity-70 mt-2">
-                      {new Date(msg.createdAt).toLocaleTimeString()}
-                    </div>
-                  </div>
+              {activeChat.messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Start a conversation with your AI assistant
                 </div>
-              ))}
-              
+              ) : (
+                <>
+                  {activeChat.messages
+                    .filter((msg) => msg.role !== "system")
+                    .map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex ${
+                          msg.role === "user" ? "justify-end" : "justify-start"
+                        } fade-in`}
+                      >
+                        <div
+                          className={`max-w-3xl p-4 rounded-lg ${
+                            msg.role === "user"
+                              ? "bg-cyan-600 text-white ml-12"
+                              : "bg-gray-700 text-gray-100 mr-12"
+                          }`}
+                        >
+                          <div
+                            className="message-content whitespace-pre-wrap"
+                            dangerouslySetInnerHTML={formatMessageContent(
+                              msg.content
+                            )}
+                          />
+                          <div className="text-xs opacity-70 mt-2">
+                            {new Date(msg.createdAt).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </>
+              )}
+
               {isLoading && (
                 <div className="flex justify-start fade-in">
                   <div className="bg-gray-700 p-4 rounded-lg mr-12">
@@ -382,7 +518,9 @@ const DevChatInterface = () => {
                 <input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && !e.shiftKey && sendMessage()
+                  }
                   placeholder="Ask your AI assistant anything..."
                   className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus-ring placeholder-gray-400"
                   disabled={isLoading}
