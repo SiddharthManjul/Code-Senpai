@@ -30,7 +30,7 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     name: 'gpt-5',
     provider: 'openai',
     modelName: 'gpt-5-nano',
-    displayName: 'GPT-4o',
+    displayName: 'GPT-5-mini',
     description: 'OpenAI\'s most advanced multimodal model',
     color: 'text-green-400'
   },
@@ -70,28 +70,28 @@ export class AIServiceManager {
 
     // OpenAI GPT-4o
     this.models.set('gpt-4', new ChatOpenAI({
-      modelName: "gpt-4o",
-      temperature: 0.7,
-      openAIApiKey: process.env.OPENAI_API_KEY,
+      modelName: "gpt-5-nano",
+      temperature: 1,
+      apiKey: process.env.OPENAI_API_KEY,
       maxTokens: 4096,
     }));
 
     // DeepSeek (using OpenAI-compatible API)
     this.models.set('deepseek-chat', new ChatOpenAI({
-      modelName: "deepseek-chat",
+      modelName: "deepseek-r1-distill-llama-70b",
       temperature: 0.7,
-      openAIApiKey: process.env.DEEPSEEK_API_KEY,
+      apiKey: process.env.DEEPSEEK_API_KEY,
       maxTokens: 4096,
       configuration: {
-        baseURL: "https://api.deepseek.com/v1",
+        baseURL: "https://api.groq.com/openai/v1",
       },
     }));
 
     // Llama via Groq (fastest inference)
     this.models.set('llama-3', new ChatOpenAI({
-      modelName: "llama-3.1-70b-versatile",
+      modelName: "meta-llama/llama-4-maverick-17b-128e-instruct",
       temperature: 0.7,
-      openAIApiKey: process.env.LLAMA_API_KEY,
+      apiKey: process.env.LLAMA_API_KEY,
       maxTokens: 4096,
       configuration: {
         baseURL: "https://api.groq.com/openai/v1",

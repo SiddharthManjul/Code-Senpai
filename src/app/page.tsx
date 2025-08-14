@@ -52,7 +52,7 @@ const MODELS: ModelConfig[] = [
   {
     name: "gpt-4",
     provider: "openai",
-    displayName: "GPT-4o",
+    displayName: "GPT-5-nano",
     description: "OpenAI's most advanced multimodal model",
     color: "text-green-400",
   },
