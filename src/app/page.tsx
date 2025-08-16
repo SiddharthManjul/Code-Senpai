@@ -13,6 +13,8 @@ import {
   Zap,
   Bot,
   Terminal,
+  Menu,
+  X,
 } from "lucide-react";
 
 // Types
@@ -65,28 +67,24 @@ const MODELS: ModelConfig[] = [
   {
     name: "llama-3",
     provider: "llama",
-    displayName: "Llama 3.1 70B",
+    displayName: "Llama 4",
     description: "Meta's open-source large language model",
     color: "text-blue-400",
   },
 ];
 
-// Helper function to get initial welcome message based on model
 const getInitialMessage = (modelName: string): Message => {
   const model = MODELS.find((m) => m.name === modelName);
   const modelDisplayName = model?.displayName || "AI Assistant";
 
   const welcomeMessages = {
-//     "claude-sonnet": `Hello! I'm **${modelDisplayName}**, your AI coding assistant. I'm here to help you with:
+    // • **Code writing & debugging** - From simple scripts to complex applications
+    // • **Algorithm design** - Optimizing performance and solving computational problems
+    // • **Code reviews** - Best practices, security, and maintainability
+    // • **Technical explanations** - Breaking down complex concepts
+    // • **Architecture planning** - System design and project structure
 
-// • **Code writing & debugging** - From simple scripts to complex applications
-// • **Algorithm design** - Optimizing performance and solving computational problems  
-// • **Code reviews** - Best practices, security, and maintainability
-// • **Technical explanations** - Breaking down complex concepts
-// • **Architecture planning** - System design and project structure
-
-// What would you like to work on today?`,
-
+    // What would you like to work on today?`,
     "gpt-5-nano": `Welcome! I'm **${modelDisplayName}**, ready to assist with your development needs:
 
 • **Advanced problem solving** - Complex algorithmic challenges
@@ -138,7 +136,9 @@ const DevChatInterface = () => {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [newChatTitle, setNewChatTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadChats();
@@ -147,6 +147,37 @@ const DevChatInterface = () => {
   useEffect(() => {
     scrollToBottom();
   }, [activeChat?.messages]);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isSidebarOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        window.innerWidth < 768
+      ) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSidebarOpen]);
+
+  // Close sidebar on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -158,16 +189,13 @@ const DevChatInterface = () => {
       setError(null);
 
       const response = await fetch("/api/chats");
-
       if (!response.ok) {
-        // Try to get error details from response
         const errorData = await response.json().catch(() => null);
         const errorMessage = errorData?.message || response.statusText;
         throw new Error(`Request failed: ${response.status} - ${errorMessage}`);
       }
 
       const data = await response.json();
-
       if (!Array.isArray(data)) {
         throw new Error("Invalid data format received from server");
       }
@@ -189,8 +217,6 @@ const DevChatInterface = () => {
     try {
       setIsLoading(true);
       setError(null);
-
-      // Create the initial welcome message
       const initialMessage = getInitialMessage(selectedModel);
 
       const response = await fetch("/api/chats", {
@@ -199,7 +225,7 @@ const DevChatInterface = () => {
         body: JSON.stringify({
           title: `New Chat ${new Date().toLocaleTimeString()}`,
           model: selectedModel,
-          initialMessage: initialMessage, // Pass the initial message to the backend
+          initialMessage: initialMessage,
         }),
       });
 
@@ -208,14 +234,13 @@ const DevChatInterface = () => {
       }
 
       const newChat = await response.json();
-
-      // If the backend doesn't handle initial messages, add it here
       if (!newChat.messages || newChat.messages.length === 0) {
         newChat.messages = [initialMessage];
       }
 
       setChats([newChat, ...chats]);
       setActiveChat(newChat);
+      setIsSidebarOpen(false); // Close sidebar on mobile after creating new chat
     } catch (error) {
       console.error("Failed to create chat:", error);
       setError(
@@ -234,7 +259,6 @@ const DevChatInterface = () => {
     setIsLoading(true);
     setError(null);
 
-    // Declare tempUserMessage outside try/catch so it's accessible in both
     const tempUserMessage: Message = {
       id: `temp-user-${Date.now()}`,
       role: "user",
@@ -243,7 +267,6 @@ const DevChatInterface = () => {
     };
 
     try {
-      // Add user message to UI immediately
       setActiveChat((prev) => ({
         ...prev!,
         messages: [...prev!.messages, tempUserMessage],
@@ -265,7 +288,6 @@ const DevChatInterface = () => {
 
       const { userMsg, assistantMsg } = await response.json();
 
-      // Update chat with real messages
       setActiveChat((prev) => ({
         ...prev!,
         messages: [
@@ -275,7 +297,6 @@ const DevChatInterface = () => {
         ],
       }));
 
-      // Update chats list
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === activeChat.id
@@ -296,8 +317,6 @@ const DevChatInterface = () => {
       setError(
         error instanceof Error ? error.message : "Failed to send message"
       );
-
-      // Remove temp message on error
       setActiveChat((prev) => ({
         ...prev!,
         messages: prev!.messages.filter((m) => m.id !== tempUserMessage.id),
@@ -382,7 +401,6 @@ const DevChatInterface = () => {
   };
 
   const formatMessageContent = (content: string): { __html: string } => {
-    // Escape HTML first
     let html = content
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -390,38 +408,29 @@ const DevChatInterface = () => {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
 
-    // Convert markdown code blocks with optional language
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
       const langClass = lang ? `language-${lang}` : "";
       return `<pre class="bg-gray-800 rounded-lg p-4 my-2 overflow-x-auto"><code class="${langClass}">${code.trim()}</code></pre>`;
     });
 
-    // Convert inline code
     html = html.replace(
       /`([^`]+)`/g,
       '<code class="bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>'
     );
 
-    // Convert links
     html = html.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
       '<a href="$2" class="text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>'
     );
 
-    // Convert bullet points
     html = html.replace(
       /^• (.+)$/gm,
       '<div class="flex items-start space-x-2 my-1"><span class="text-cyan-400 mt-1">•</span><span>$1</span></div>'
     );
 
-    // Convert line breaks (handle both \n and \r\n)
     html = html.replace(/\r?\n/g, "<br />");
-
-    // Convert bold text
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-
-    // Convert italic text
     html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
     html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
 
@@ -429,11 +438,36 @@ const DevChatInterface = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-gray-900 text-white relative">
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-gray-800 p-3 z-20 flex justify-between items-center border-b border-gray-700">
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="p-2 focus-ring"
+        >
+          {isSidebarOpen ? (
+            <X className="w-5 h-5" />
+          ) : (
+            <Menu className="w-5 h-5" />
+          )}
+        </button>
+        <div className="flex items-center space-x-2">
+          <Terminal className="w-5 h-5 text-cyan-400" />
+          <h1 className="text-lg font-bold">Code Senpai</h1>
+        </div>
+        <div className="w-10"></div>
+      </div>
+
       {/* Sidebar */}
-      <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-700">
+      <div
+        ref={sidebarRef}
+        className={`w-80 bg-gray-800 border-r border-gray-700 flex flex-col fixed md:static inset-y-0 z-10 transform transition-transform duration-200 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+        style={{ top: "3.5rem", height: "calc(100vh - 3.5rem)" }}
+      >
+        {/* Desktop Header */}
+        <div className="p-4 border-b border-gray-700 hidden md:block">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Terminal className="w-6 h-6 text-cyan-400" />
@@ -507,7 +541,12 @@ const DevChatInterface = () => {
                     ? "bg-gray-700 border-l-4 border-l-cyan-400"
                     : ""
                 }`}
-                onClick={() => !isLoading && setActiveChat(chat)}
+                onClick={() => {
+                  if (!isLoading) {
+                    setActiveChat(chat);
+                    setIsSidebarOpen(false); // Close sidebar on mobile when selecting chat
+                  }
+                }}
               >
                 <div className="flex items-center justify-between">
                   {editingChatId === chat.id ? (
@@ -589,7 +628,7 @@ const DevChatInterface = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col pt-14 md:pt-0">
         {activeChat ? (
           <>
             {/* Chat Header */}
