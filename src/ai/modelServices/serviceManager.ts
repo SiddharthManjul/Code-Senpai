@@ -27,7 +27,7 @@ export const MODEL_CONFIGS: ModelConfig[] = [
   //   color: 'text-orange-400'
   // },
   {
-    name: 'gpt-5',
+    name: 'gpt-5-nano',
     provider: 'openai',
     modelName: 'gpt-5-nano',
     displayName: 'GPT-5-mini',
@@ -69,7 +69,7 @@ export class AIServiceManager {
     // }));
 
     // OpenAI GPT-4o
-    this.models.set('gpt-4', new ChatOpenAI({
+    this.models.set('gpt-5-nano', new ChatOpenAI({
       modelName: "gpt-5-nano",
       temperature: 1,
       apiKey: process.env.OPENAI_API_KEY,

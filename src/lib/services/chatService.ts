@@ -21,6 +21,13 @@ export interface ChatWithMessages {
   }[];
 }
 
+export interface InitialMessage {
+  id?: string;
+  role: MessageRole;
+  content: string;
+  createdAt?: string;
+}
+
 export class ChatService {
   private static handleError(methodName: string, error: unknown): never {
     console.error(`ChatService.${methodName} error:`, error);
@@ -33,19 +40,34 @@ export class ChatService {
 
   static async createChat(
     title: string,
-    model: string
+    model: string,
+    initialMessage?: InitialMessage
   ): Promise<ChatWithMessages> {
     try {
+      // Prepare messages to create
+      const messagesToCreate = [];
+
+      // Always add the system message first
+      messagesToCreate.push({
+        role: "system" as MessageRole,
+        content:
+          "You are a helpful AI assistant specialized in helping developers build projects. Provide clear, practical solutions with code examples when relevant.",
+      });
+
+      // Add initial message if provided (this will be the welcome message)
+      if (initialMessage) {
+        messagesToCreate.push({
+          role: initialMessage.role,
+          content: initialMessage.content,
+        });
+      }
+
       return await prisma.chat.create({
         data: {
           title,
           model,
           messages: {
-            create: {
-              role: "system",
-              content:
-                "You are a helpful AI assistant specialized in helping developers build projects. Provide clear, practical solutions with code examples when relevant.",
-            },
+            create: messagesToCreate,
           },
         },
         include: {

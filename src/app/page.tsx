@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -42,15 +41,15 @@ interface ModelConfig {
 }
 
 const MODELS: ModelConfig[] = [
+  // {
+  //   name: "claude-sonnet",
+  //   provider: "claude",
+  //   displayName: "Claude Sonnet 4",
+  //   description: "Anthropic's smart, efficient model for everyday use",
+  //   color: "text-orange-400",
+  // },
   {
-    name: "claude-sonnet",
-    provider: "claude",
-    displayName: "Claude Sonnet 4",
-    description: "Anthropic's smart, efficient model for everyday use",
-    color: "text-orange-400",
-  },
-  {
-    name: "gpt-4",
+    name: "gpt-5-nano",
     provider: "openai",
     displayName: "GPT-5-nano",
     description: "OpenAI's most advanced multimodal model",
@@ -72,11 +71,68 @@ const MODELS: ModelConfig[] = [
   },
 ];
 
+// Helper function to get initial welcome message based on model
+const getInitialMessage = (modelName: string): Message => {
+  const model = MODELS.find((m) => m.name === modelName);
+  const modelDisplayName = model?.displayName || "AI Assistant";
+
+  const welcomeMessages = {
+//     "claude-sonnet": `Hello! I'm **${modelDisplayName}**, your AI coding assistant. I'm here to help you with:
+
+// • **Code writing & debugging** - From simple scripts to complex applications
+// • **Algorithm design** - Optimizing performance and solving computational problems  
+// • **Code reviews** - Best practices, security, and maintainability
+// • **Technical explanations** - Breaking down complex concepts
+// • **Architecture planning** - System design and project structure
+
+// What would you like to work on today?`,
+
+    "gpt-5-nano": `Welcome! I'm **${modelDisplayName}**, ready to assist with your development needs:
+
+• **Advanced problem solving** - Complex algorithmic challenges
+• **Multi-language support** - Python, JavaScript, Java, C++, and more
+• **Code optimization** - Performance tuning and refactoring
+• **Documentation** - Clear, comprehensive code documentation
+• **Testing strategies** - Unit tests, integration tests, and QA
+
+How can I help you code better today?`,
+
+    "deepseek-chat": `Hi there! I'm **${modelDisplayName}**, your specialized coding companion:
+
+• **Deep code analysis** - Understanding complex codebases
+• **Refactoring assistance** - Clean, maintainable code transformations
+• **Pattern recognition** - Design patterns and architectural insights
+• **Performance optimization** - Efficient algorithms and data structures
+• **Code generation** - From snippets to full applications
+
+What coding challenge can I help you tackle?`,
+
+    "llama-3": `Greetings! I'm **${modelDisplayName}**, an open-source AI ready to code with you:
+
+• **Collaborative coding** - Pair programming and code reviews
+• **Educational support** - Learning new languages and frameworks
+• **Open-source projects** - Contributing to community code
+• **Cross-platform development** - Web, mobile, desktop solutions
+• **DevOps assistance** - CI/CD, containerization, and deployment
+
+Ready to build something amazing together?`,
+  };
+
+  return {
+    id: `welcome-${Date.now()}`,
+    role: "assistant",
+    content:
+      welcomeMessages[modelName as keyof typeof welcomeMessages] ||
+      welcomeMessages["gpt-5-nano"],
+    createdAt: new Date().toISOString(),
+  };
+};
+
 const DevChatInterface = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [message, setMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState("claude-sonnet");
+  const [selectedModel, setSelectedModel] = useState("gpt-5-nano");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -133,12 +189,17 @@ const DevChatInterface = () => {
     try {
       setIsLoading(true);
       setError(null);
+
+      // Create the initial welcome message
+      const initialMessage = getInitialMessage(selectedModel);
+
       const response = await fetch("/api/chats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: `New Chat ${new Date().toLocaleTimeString()}`,
           model: selectedModel,
+          initialMessage: initialMessage, // Pass the initial message to the backend
         }),
       });
 
@@ -147,6 +208,12 @@ const DevChatInterface = () => {
       }
 
       const newChat = await response.json();
+
+      // If the backend doesn't handle initial messages, add it here
+      if (!newChat.messages || newChat.messages.length === 0) {
+        newChat.messages = [initialMessage];
+      }
+
       setChats([newChat, ...chats]);
       setActiveChat(newChat);
     } catch (error) {
@@ -341,6 +408,12 @@ const DevChatInterface = () => {
       '<a href="$2" class="text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>'
     );
 
+    // Convert bullet points
+    html = html.replace(
+      /^• (.+)$/gm,
+      '<div class="flex items-start space-x-2 my-1"><span class="text-cyan-400 mt-1">•</span><span>$1</span></div>'
+    );
+
     // Convert line breaks (handle both \n and \r\n)
     html = html.replace(/\r?\n/g, "<br />");
 
@@ -354,7 +427,6 @@ const DevChatInterface = () => {
 
     return { __html: html };
   };
-  // ... [rest of the helper functions remain the same]
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
@@ -437,7 +509,79 @@ const DevChatInterface = () => {
                 }`}
                 onClick={() => !isLoading && setActiveChat(chat)}
               >
-                {/* ... [rest of the chat list item remains the same] */}
+                <div className="flex items-center justify-between">
+                  {editingChatId === chat.id ? (
+                    <input
+                      value={newChatTitle}
+                      onChange={(e) => setNewChatTitle(e.target.value)}
+                      onBlur={() => {
+                        if (newChatTitle.trim()) {
+                          updateChatTitle(chat.id, newChatTitle);
+                        }
+                        setEditingChatId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          if (newChatTitle.trim()) {
+                            updateChatTitle(chat.id, newChatTitle);
+                          }
+                          setEditingChatId(null);
+                        }
+                        if (e.key === "Escape") {
+                          setEditingChatId(null);
+                        }
+                      }}
+                      className="bg-gray-600 text-white px-2 py-1 rounded text-sm flex-1 mr-2"
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="flex-1">
+                      <h3 className="font-medium text-sm truncate mb-1">
+                        {chat.title}
+                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className={`text-xs ${
+                            MODELS.find((m) => m.name === chat.model)?.color ||
+                            "text-gray-400"
+                          }`}
+                        >
+                          {MODELS.find((m) => m.name === chat.model)
+                            ?.displayName || chat.model}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(chat.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {editingChatId !== chat.id && (
+                    <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingChatId(chat.id);
+                          setNewChatTitle(chat.title);
+                        }}
+                        className="p-1 hover:bg-gray-600 rounded"
+                        disabled={isLoading}
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteChat(chat.id);
+                        }}
+                        className="p-1 hover:bg-gray-600 rounded text-red-400"
+                        disabled={isLoading}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ))
           )}
