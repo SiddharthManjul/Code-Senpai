@@ -6,8 +6,9 @@ const aiManager = new AIServiceManager();
 
 export async function POST(request: Request) {
   try {
-    const { chatId, message, model } = await request.json();
+    const { chatId, message, model, userIdentifier } = await request.json();
 
+    // Validate required fields
     if (!chatId || !message || !model) {
       return NextResponse.json(
         { error: 'Chat ID, message, and model are required' },
@@ -15,17 +16,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get chat history
-    const chat = await ChatService.getChatById(chatId);
+    // Validate user identifier
+    if (!userIdentifier || (!userIdentifier.walletAddress && !userIdentifier.email)) {
+      return NextResponse.json(
+        { error: 'User identifier (walletAddress or email) is required' },
+        { status: 400 }
+      );
+    }
+
+    // Get chat history (ensuring it belongs to the user)
+    const chat = await ChatService.getChatById(chatId, userIdentifier);
     if (!chat) {
       return NextResponse.json(
-        { error: 'Chat not found' },
+        { error: 'Chat not found or access denied' },
         { status: 404 }
       );
     }
 
     // Add user message to database
-    const userMessage = await ChatService.addMessage(chatId, 'user', message);
+    const userMessage = await ChatService.addMessage(
+      chatId, 
+      'user', 
+      message, 
+      userIdentifier
+    );
 
     // Convert to LangChain format and get AI response
     const chatHistory = ChatService.messagesToLangChain([...chat.messages, userMessage]);
@@ -36,7 +50,8 @@ export async function POST(request: Request) {
       const assistantMessage = await ChatService.addMessage(
         chatId,
         'assistant',
-        typeof aiResponse.content === 'string' ? aiResponse.content : String(aiResponse.content)
+        typeof aiResponse.content === 'string' ? aiResponse.content : String(aiResponse.content),
+        userIdentifier
       );
 
       return NextResponse.json({
