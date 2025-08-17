@@ -1,10 +1,46 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/api/chats/route.ts
 import { NextResponse } from 'next/server'
 import { ChatService } from '@/lib/services/chatService'
 
-export async function GET() {
+// Helper function to get user identifier from query parameters
+function getUserIdentifierFromQuery(url: URL) {
+  const walletAddress = url.searchParams.get('walletAddress');
+  const email = url.searchParams.get('email');
+  
+  if (!walletAddress && !email) {
+    return null;
+  }
+  
+  return { 
+    walletAddress: walletAddress || undefined, 
+    email: email || undefined 
+  };
+}
+
+// Helper function to get user identifier from request body
+async function getUserIdentifierFromBody(request: Request) {
   try {
-    const chats = await ChatService.getChats();
+    const body = await request.json();
+    return body.userIdentifier || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const userIdentifier = getUserIdentifierFromQuery(url);
+    
+    if (!userIdentifier || (!userIdentifier.walletAddress && !userIdentifier.email)) {
+      return NextResponse.json(
+        { error: 'User identifier (walletAddress or email) is required as query parameter' },
+        { status: 400 }
+      );
+    }
+
+    const chats = await ChatService.getChats(userIdentifier);
     return NextResponse.json(chats);
   } catch (error) {
     console.error('GET /api/chats error:', error);
@@ -17,11 +53,19 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, model, initialMessage } = await request.json();
+    const body = await request.json();
+    const { title, model, initialMessage, userIdentifier } = body;
     
     if (!title || !model) {
       return NextResponse.json(
         { error: 'Title and model are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!userIdentifier || (!userIdentifier.walletAddress && !userIdentifier.email)) {
+      return NextResponse.json(
+        { error: 'User identifier (walletAddress or email) is required' },
         { status: 400 }
       );
     }
@@ -34,7 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const newChat = await ChatService.createChat(title, model, initialMessage);
+    const newChat = await ChatService.createChat(title, model, userIdentifier, initialMessage);
     return NextResponse.json(newChat, { status: 201 });
   } catch (error) {
     console.error('POST /api/chats error:', error);
@@ -47,8 +91,9 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const chatId = searchParams.get('chatId');
+    const url = new URL(request.url);
+    const chatId = url.searchParams.get('chatId');
+    const userIdentifier = getUserIdentifierFromQuery(url);
 
     if (!chatId) {
       return NextResponse.json(
@@ -57,7 +102,14 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await ChatService.deleteChat(chatId);
+    if (!userIdentifier || (!userIdentifier.walletAddress && !userIdentifier.email)) {
+      return NextResponse.json(
+        { error: 'User identifier (walletAddress or email) is required as query parameter' },
+        { status: 400 }
+      );
+    }
+
+    await ChatService.deleteChat(chatId, userIdentifier);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE /api/chats error:', error);
@@ -70,9 +122,10 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const chatId = searchParams.get('chatId');
-    const { title } = await request.json();
+    const url = new URL(request.url);
+    const chatId = url.searchParams.get('chatId');
+    const body = await request.json();
+    const { title, userIdentifier } = body;
 
     if (!chatId) {
       return NextResponse.json(
@@ -88,7 +141,14 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const updatedChat = await ChatService.updateChatTitle(chatId, title);
+    if (!userIdentifier || (!userIdentifier.walletAddress && !userIdentifier.email)) {
+      return NextResponse.json(
+        { error: 'User identifier (walletAddress or email) is required' },
+        { status: 400 }
+      );
+    }
+
+    const updatedChat = await ChatService.updateChatTitle(chatId, title, userIdentifier);
     return NextResponse.json(updatedChat);
   } catch (error) {
     console.error('PATCH /api/chats error:', error);
