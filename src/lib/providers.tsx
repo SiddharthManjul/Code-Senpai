@@ -13,8 +13,6 @@ import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
  
 // Import Sei Global Wallet for EIP-6963 discovery
 import '@sei-js/sei-global-wallet/eip6963';
-import * as dotenv from 'dotenv';
-dotenv.config();
  
 const queryClient = new QueryClient();
  
@@ -30,7 +28,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <DynamicContextProvider
       settings={{
-        environmentId: process.env.DYNAMIC_ENVIRONMENT_ID ?? '', // Replace with your environmentId
+        environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID ?? '', // Replace with your environmentId
         walletConnectors: [EthereumWalletConnectors],
         overrides: {
           evmNetworks: (networks) => [
