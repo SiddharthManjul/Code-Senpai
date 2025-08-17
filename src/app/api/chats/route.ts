@@ -1,53 +1,22 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+ 
 // app/api/chats/route.ts
-import { NextResponse } from 'next/server'
-import { ChatService } from '@/lib/services/chatService'
-
-// Helper function to get user identifier from query parameters
-function getUserIdentifierFromQuery(url: URL) {
-  const walletAddress = url.searchParams.get('walletAddress');
-  const email = url.searchParams.get('email');
-  
-  if (!walletAddress && !email) {
-    return null;
-  }
-  
-  return { 
-    walletAddress: walletAddress || undefined, 
-    email: email || undefined 
-  };
-}
-
-// Helper function to get user identifier from request body
-async function getUserIdentifierFromBody(request: Request) {
-  try {
-    const body = await request.json();
-    return body.userIdentifier || null;
-  } catch {
-    return null;
-  }
-}
+import { NextResponse } from 'next/server';
+import { ChatService } from '../../../lib/services/chatService';
 
 export async function GET(request: Request) {
   try {
-    const url = new URL(request.url);
-    const userIdentifier = getUserIdentifierFromQuery(url);
-    
-    if (!userIdentifier || (!userIdentifier.walletAddress && !userIdentifier.email)) {
-      return NextResponse.json(
-        { error: 'User identifier (walletAddress or email) is required as query parameter' },
-        { status: 400 }
-      );
+    const { searchParams } = new URL(request.url);
+    const walletAddress = searchParams.get('walletAddress');
+    const email = searchParams.get('email');
+
+    if (!walletAddress && !email) {
+      return new Response(JSON.stringify({ error: 'walletAddress or email required' }), { status: 400 });
     }
 
-    const chats = await ChatService.getChats(userIdentifier);
-    return NextResponse.json(chats);
+    const chats = await ChatService.getChats({ walletAddress: walletAddress || undefined, email: email || undefined });
+    return new Response(JSON.stringify(chats), { status: 200 });
   } catch (error) {
-    console.error('GET /api/chats error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch chats', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: 'Failed to get chats', details: error instanceof Error ? error.message : String(error) }), { status: 500 });
   }
 }
 
@@ -157,4 +126,15 @@ export async function PATCH(request: Request) {
       { status: 500 }
     );
   }
+}
+function getUserIdentifierFromQuery(url: URL) {
+  const walletAddress = url.searchParams.get('walletAddress');
+  const email = url.searchParams.get('email');
+  if (walletAddress || email) {
+    return {
+      walletAddress: walletAddress || undefined,
+      email: email || undefined,
+    };
+  }
+  return null;
 }

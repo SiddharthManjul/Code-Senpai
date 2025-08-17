@@ -15,6 +15,9 @@ import {
   Terminal,
   Menu,
   X,
+  Wallet,
+  Mail,
+  LogOut,
 } from "lucide-react";
 
 // Types
@@ -32,6 +35,7 @@ interface Chat {
   createdAt: string;
   updatedAt: string;
   messages: Message[];
+  userId: string;
 }
 
 interface ModelConfig {
@@ -42,14 +46,12 @@ interface ModelConfig {
   color: string;
 }
 
+interface UserIdentifier {
+  walletAddress?: string;
+  email?: string;
+}
+
 const MODELS: ModelConfig[] = [
-  // {
-  //   name: "claude-sonnet",
-  //   provider: "claude",
-  //   displayName: "Claude Sonnet 4",
-  //   description: "Anthropic's smart, efficient model for everyday use",
-  //   color: "text-orange-400",
-  // },
   {
     name: "gpt-5-nano",
     provider: "openai",
@@ -78,13 +80,6 @@ const getInitialMessage = (modelName: string): Message => {
   const modelDisplayName = model?.displayName || "AI Assistant";
 
   const welcomeMessages = {
-    // • **Code writing & debugging** - From simple scripts to complex applications
-    // • **Algorithm design** - Optimizing performance and solving computational problems
-    // • **Code reviews** - Best practices, security, and maintainability
-    // • **Technical explanations** - Breaking down complex concepts
-    // • **Architecture planning** - System design and project structure
-
-    // What would you like to work on today?`,
     "gpt-5-nano": `Welcome! I'm **${modelDisplayName}**, ready to assist with your development needs:
 
 • **Advanced problem solving** - Complex algorithmic challenges
@@ -137,12 +132,38 @@ const DevChatInterface = () => {
   const [newChatTitle, setNewChatTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // User Authentication State
+  const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authInput, setAuthInput] = useState("");
+  const [authType, setAuthType] = useState<"wallet" | "email">("wallet");
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  // Check for existing user session on mount
   useEffect(() => {
-    loadChats();
+    const savedUser = localStorage.getItem("userIdentifier");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        setUserIdentifier(parsed);
+      } catch (error) {
+        console.error("Failed to parse saved user:", error);
+        localStorage.removeItem("userIdentifier");
+        setShowAuthModal(true);
+      }
+    } else {
+      setShowAuthModal(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (userIdentifier) {
+      loadChats();
+    }
+  }, [userIdentifier]);
 
   useEffect(() => {
     scrollToBottom();
@@ -183,15 +204,59 @@ const DevChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Authentication Functions
+  const handleAuth = () => {
+    if (!authInput.trim()) return;
+
+    const identifier: UserIdentifier = {};
+    
+    if (authType === "wallet") {
+      identifier.walletAddress = authInput.trim();
+    } else {
+      identifier.email = authInput.trim();
+    }
+
+    setUserIdentifier(identifier);
+    localStorage.setItem("userIdentifier", JSON.stringify(identifier));
+    setShowAuthModal(false);
+    setAuthInput("");
+  };
+
+  const handleLogout = () => {
+    setUserIdentifier(null);
+    localStorage.removeItem("userIdentifier");
+    setChats([]);
+    setActiveChat(null);
+    setShowAuthModal(true);
+  };
+
+  const getUserDisplayName = () => {
+    if (!userIdentifier) return "";
+    return userIdentifier.walletAddress 
+      ? `${userIdentifier.walletAddress.slice(0, 6)}...${userIdentifier.walletAddress.slice(-4)}`
+      : userIdentifier.email || "";
+  };
+
+  const buildQueryParams = (params: Record<string, string>) => {
+    return new URLSearchParams(params).toString();
+  };
+
   const loadChats = async () => {
+    if (!userIdentifier) return;
+
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/chats");
+      const queryParams = buildQueryParams({
+        ...(userIdentifier.walletAddress && { walletAddress: userIdentifier.walletAddress }),
+        ...(userIdentifier.email && { email: userIdentifier.email }),
+      });
+
+      const response = await fetch(`/api/chats?${queryParams}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        const errorMessage = errorData?.message || response.statusText;
+        const errorMessage = errorData?.error || response.statusText;
         throw new Error(`Request failed: ${response.status} - ${errorMessage}`);
       }
 
@@ -214,6 +279,8 @@ const DevChatInterface = () => {
   };
 
   const createNewChat = async () => {
+    if (!userIdentifier) return;
+
     try {
       setIsLoading(true);
       setError(null);
@@ -226,11 +293,13 @@ const DevChatInterface = () => {
           title: `New Chat ${new Date().toLocaleTimeString()}`,
           model: selectedModel,
           initialMessage: initialMessage,
+          userIdentifier,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
       const newChat = await response.json();
@@ -240,7 +309,7 @@ const DevChatInterface = () => {
 
       setChats([newChat, ...chats]);
       setActiveChat(newChat);
-      setIsSidebarOpen(false); // Close sidebar on mobile after creating new chat
+      setIsSidebarOpen(false);
     } catch (error) {
       console.error("Failed to create chat:", error);
       setError(
@@ -252,7 +321,7 @@ const DevChatInterface = () => {
   };
 
   const sendMessage = async () => {
-    if (!message.trim() || !activeChat || isLoading) return;
+    if (!message.trim() || !activeChat || isLoading || !userIdentifier) return;
 
     const userMessage = message.trim();
     setMessage("");
@@ -279,11 +348,13 @@ const DevChatInterface = () => {
           chatId: activeChat.id,
           message: userMessage,
           model: activeChat.model,
+          userIdentifier,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
       const { userMsg, assistantMsg } = await response.json();
@@ -327,15 +398,25 @@ const DevChatInterface = () => {
   };
 
   const deleteChat = async (chatId: string) => {
+    if (!userIdentifier) return;
+
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`/api/chats?chatId=${chatId}`, {
+      
+      const queryParams = buildQueryParams({
+        chatId,
+        ...(userIdentifier.walletAddress && { walletAddress: userIdentifier.walletAddress }),
+        ...(userIdentifier.email && { email: userIdentifier.email }),
+      });
+
+      const response = await fetch(`/api/chats?${queryParams}`, {
         method: "DELETE",
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
       const updatedChats = chats.filter((chat) => chat.id !== chatId);
@@ -355,17 +436,23 @@ const DevChatInterface = () => {
   };
 
   const updateChatTitle = async (chatId: string, title: string) => {
+    if (!userIdentifier) return;
+
     try {
       setIsLoading(true);
       setError(null);
       const response = await fetch(`/api/chats?chatId=${chatId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({ 
+          title,
+          userIdentifier 
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
       setChats((prev) =>
@@ -437,6 +524,68 @@ const DevChatInterface = () => {
     return { __html: html };
   };
 
+  // Authentication Modal
+  if (showAuthModal) {
+    return (
+      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700">
+          <div className="text-center mb-6">
+            <Terminal className="w-12 h-12 mx-auto mb-4 text-cyan-400" />
+            <h2 className="text-2xl font-bold text-white mb-2">Welcome to Code Senpai</h2>
+            <p className="text-gray-400">Connect with your wallet or email to get started</p>
+          </div>
+
+          <div className="flex mb-4 bg-gray-700 rounded-lg p-1">
+            <button
+              onClick={() => setAuthType("wallet")}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md transition-colors ${
+                authType === "wallet" ? "bg-cyan-600 text-white" : "text-gray-300 hover:text-white"
+              }`}
+            >
+              <Wallet className="w-4 h-4" />
+              <span>Wallet</span>
+            </button>
+            <button
+              onClick={() => setAuthType("email")}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md transition-colors ${
+                authType === "email" ? "bg-cyan-600 text-white" : "text-gray-300 hover:text-white"
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              <span>Email</span>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <input
+              type={authType === "email" ? "email" : "text"}
+              value={authInput}
+              onChange={(e) => setAuthInput(e.target.value)}
+              placeholder={
+                authType === "wallet" 
+                  ? "Enter your wallet address (0x...)" 
+                  : "Enter your email address"
+              }
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              onKeyDown={(e) => e.key === "Enter" && handleAuth()}
+            />
+            <button
+              onClick={handleAuth}
+              disabled={!authInput.trim()}
+              className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition-colors"
+            >
+              Continue
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500 text-center mt-4">
+            Your chats are private and only accessible with your {authType === "wallet" ? "wallet address" : "email address"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-900 text-white relative">
       {/* Mobile Header */}
@@ -455,7 +604,13 @@ const DevChatInterface = () => {
           <Terminal className="w-5 h-5 text-cyan-400" />
           <h1 className="text-lg font-bold">Code Senpai</h1>
         </div>
-        <div className="w-10"></div>
+        <button
+          onClick={handleLogout}
+          className="p-2 text-red-400 hover:bg-gray-700 rounded"
+          title="Logout"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Sidebar */}
@@ -473,12 +628,31 @@ const DevChatInterface = () => {
               <Terminal className="w-6 h-6 text-cyan-400" />
               <h1 className="text-xl font-bold">Code Senpai</h1>
             </div>
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors focus-ring"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors focus-ring"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* User Info */}
+          <div className="flex items-center space-x-2 mb-4 p-2 bg-gray-700 rounded-lg">
+            {userIdentifier?.walletAddress ? (
+              <Wallet className="w-4 h-4 text-cyan-400" />
+            ) : (
+              <Mail className="w-4 h-4 text-cyan-400" />
+            )}
+            <span className="text-sm text-gray-300 truncate">{getUserDisplayName()}</span>
           </div>
 
           <button
@@ -495,6 +669,12 @@ const DevChatInterface = () => {
         {error && (
           <div className="p-4 bg-red-900/50 text-red-200 text-sm border-b border-red-800">
             <p>{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-xs text-red-300 hover:text-red-100 mt-1"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
@@ -544,7 +724,7 @@ const DevChatInterface = () => {
                 onClick={() => {
                   if (!isLoading) {
                     setActiveChat(chat);
-                    setIsSidebarOpen(false); // Close sidebar on mobile when selecting chat
+                    setIsSidebarOpen(false);
                   }
                 }}
               >
@@ -611,7 +791,9 @@ const DevChatInterface = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteChat(chat.id);
+                          if (window.confirm("Are you sure you want to delete this chat?")) {
+                            deleteChat(chat.id);
+                          }
                         }}
                         className="p-1 hover:bg-gray-600 rounded text-red-400"
                         disabled={isLoading}
@@ -738,10 +920,79 @@ const DevChatInterface = () => {
               <Terminal className="w-12 h-12 mx-auto mb-4 text-cyan-400" />
               <h3 className="text-xl mb-2">Welcome to Code Senpai</h3>
               <p>Select a chat or create a new one to get started</p>
+              {/* Mobile New Chat Button */}
+              <button
+                onClick={createNewChat}
+                disabled={isLoading}
+                className="mt-4 md:hidden flex items-center space-x-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors focus-ring mx-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create New Chat</span>
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Overlay for mobile sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-5 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <style jsx>{`
+        .focus-ring:focus {
+          outline: 2px solid #0891b2;
+          outline-offset: 2px;
+        }
+        
+        .fade-in {
+          animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .message-content pre {
+          margin: 0.5rem 0;
+        }
+        
+        .message-content code {
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        
+        .message-content a {
+          word-break: break-word;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+          background: #374151;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+          background: #6b7280;
+          border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af;
+        }
+      `}</style>
     </div>
   );
 };

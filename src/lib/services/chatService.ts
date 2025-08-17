@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from "../db";
 import {
   SystemMessage,
@@ -48,43 +47,42 @@ export class ChatService {
   /**
    * Find or create a user based on wallet address or email
    */
-  static async findOrCreateUser(identifier: UserIdentifier): Promise<string> {
+  private static async findOrCreateUser(identifier: UserIdentifier): Promise<string> {
     try {
       if (!identifier.walletAddress && !identifier.email) {
         throw new Error("Either walletAddress or email must be provided");
       }
 
-      let user;
+      const userData = {
+        walletAddress: identifier.walletAddress,
+        email: identifier.email
+      };
 
-      // Try to find existing user
-      if (identifier.walletAddress) {
-        user = await (prisma as any).user.findUnique({
-          where: { walletAddress: identifier.walletAddress },
-        });
-      } else if (identifier.email) {
-        user = await (prisma as any).user.findUnique({
-          where: { email: identifier.email },
-        });
-      }
-
-      // Create user if not found
-      if (!user) {
-        const userData: any = {};
-        if (identifier.walletAddress) {
-          userData.walletAddress = identifier.walletAddress;
-        }
-        if (identifier.email) {
-          userData.email = identifier.email;
-        }
-
-        user = await (prisma as any).user.create({
-          data: userData,
-        });
-      }
+      const user = await prisma.user.upsert({
+        where: {
+          walletAddress: identifier.walletAddress || undefined,
+          email: identifier.email || undefined
+        },
+        create: userData,
+        update: userData
+      });
 
       return user.id;
     } catch (error) {
       this.handleError("findOrCreateUser", error);
+    }
+  }
+
+  /**
+   * Verify chat belongs to user
+   */
+  private static async verifyChatOwnership(chatId: string, userId: string): Promise<void> {
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId }
+    });
+
+    if (!chat || chat.userId !== userId) {
+      throw new Error("Chat not found or access denied");
     }
   }
 
@@ -100,57 +98,32 @@ export class ChatService {
     try {
       const userId = await this.findOrCreateUser(userIdentifier);
 
-      // Prepare messages to create
-      const messagesToCreate = [];
-
-      // Always add the system message first
-      messagesToCreate.push({
-        role: "system" as MessageRole,
-        content:
-          "You are a helpful AI assistant specialized in helping developers build projects. Provide clear, practical solutions with code examples when relevant.",
-      });
-
-      // Add initial message if provided (this will be the welcome message)
-      if (initialMessage) {
-        messagesToCreate.push({
+      const messagesToCreate = [
+        {
+          role: "system" as const,
+          content: "You are a helpful AI assistant specialized in helping developers build projects."
+        },
+        ...(initialMessage ? [{
           role: initialMessage.role,
-          content: initialMessage.content,
-        });
-      }
+          content: initialMessage.content
+        }] : [])
+      ];
 
-      const chat = await prisma.chat.create({
+      return await prisma.chat.create({
         data: {
           title,
           model,
-          user: {
-            connect: { id: userId },
-          },
+          userId,
           messages: {
-            create: messagesToCreate,
-          },
+            create: messagesToCreate
+          }
         },
         include: {
           messages: {
-            orderBy: { createdAt: "asc" },
-          },
-        },
+            orderBy: { createdAt: "asc" }
+          }
+        }
       });
-
-      // Ensure the returned object matches ChatWithMessages type
-      return {
-        id: chat.id,
-        title: chat.title,
-        model: chat.model,
-        userId: chat.userId,
-        createdAt: chat.createdAt,
-        updatedAt: chat.updatedAt,
-        messages: chat.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          createdAt: msg.createdAt,
-        })),
-      };
     } catch (error) {
       this.handleError("createChat", error);
     }
@@ -162,15 +135,15 @@ export class ChatService {
   static async getChats(userIdentifier: UserIdentifier): Promise<ChatWithMessages[]> {
     try {
       const userId = await this.findOrCreateUser(userIdentifier);
-
+      
       return await prisma.chat.findMany({
         where: { userId },
         orderBy: { updatedAt: "desc" },
         include: {
           messages: {
-            orderBy: { createdAt: "asc" },
-          },
-        },
+            orderBy: { createdAt: "asc" }
+          }
+        }
       });
     } catch (error) {
       this.handleError("getChats", error);
@@ -181,22 +154,22 @@ export class ChatService {
    * Get a specific chat by ID, ensuring it belongs to the user
    */
   static async getChatById(
-    id: string,
+    chatId: string,
     userIdentifier: UserIdentifier
   ): Promise<ChatWithMessages | null> {
     try {
       const userId = await this.findOrCreateUser(userIdentifier);
-
+      
       return await prisma.chat.findFirst({
         where: { 
-          id,
+          id: chatId,
           userId 
         },
         include: {
           messages: {
-            orderBy: { createdAt: "asc" },
-          },
-        },
+            orderBy: { createdAt: "asc" }
+          }
+        }
       });
     } catch (error) {
       this.handleError("getChatById", error);
@@ -219,30 +192,19 @@ export class ChatService {
   }> {
     try {
       const userId = await this.findOrCreateUser(userIdentifier);
-
-      // Verify the chat belongs to the user
-      const chat = await (prisma as any).chat.findFirst({
-        where: { 
-          id: chatId,
-          userId 
-        },
-      });
-
-      if (!chat) {
-        throw new Error("Chat not found or access denied");
-      }
+      await this.verifyChatOwnership(chatId, userId);
 
       const message = await prisma.message.create({
         data: {
           chatId,
           role,
-          content,
-        },
+          content
+        }
       });
 
       await prisma.chat.update({
         where: { id: chatId },
-        data: { updatedAt: new Date() },
+        data: { updatedAt: new Date() }
       });
 
       return message;
@@ -255,31 +217,20 @@ export class ChatService {
    * Delete a chat, ensuring it belongs to the user
    */
   static async deleteChat(
-    id: string,
+    chatId: string,
     userIdentifier: UserIdentifier
   ): Promise<void> {
     try {
       const userId = await this.findOrCreateUser(userIdentifier);
-
-      // Verify the chat belongs to the user
-      const chat = await (prisma as any).chat.findFirst({
-        where: { 
-          id,
-          userId 
-        },
-      });
-
-      if (!chat) {
-        throw new Error("Chat not found or access denied");
-      }
+      await this.verifyChatOwnership(chatId, userId);
 
       await prisma.$transaction([
         prisma.message.deleteMany({
-          where: { chatId: id },
+          where: { chatId }
         }),
         prisma.chat.delete({
-          where: { id },
-        }),
+          where: { id: chatId }
+        })
       ]);
     } catch (error) {
       this.handleError("deleteChat", error);
@@ -290,33 +241,22 @@ export class ChatService {
    * Update chat title, ensuring it belongs to the user
    */
   static async updateChatTitle(
-    id: string,
+    chatId: string,
     title: string,
     userIdentifier: UserIdentifier
   ): Promise<ChatWithMessages> {
     try {
       const userId = await this.findOrCreateUser(userIdentifier);
-
-      // Verify the chat belongs to the user
-      const chat = await (prisma as any).chat.findFirst({
-        where: { 
-          id,
-          userId 
-        },
-      });
-
-      if (!chat) {
-        throw new Error("Chat not found or access denied");
-      }
+      await this.verifyChatOwnership(chatId, userId);
 
       return await prisma.chat.update({
-        where: { id },
+        where: { id: chatId },
         data: { title },
         include: {
           messages: {
-            orderBy: { createdAt: "asc" },
-          },
-        },
+            orderBy: { createdAt: "asc" }
+          }
+        }
       });
     } catch (error) {
       this.handleError("updateChatTitle", error);
