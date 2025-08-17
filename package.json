@@ -14,12 +14,17 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@dynamic-labs/ethereum": "^4.27.0",
+    "@dynamic-labs/sdk-react-core": "^4.27.0",
+    "@dynamic-labs/wagmi-connector": "^4.27.0",
     "@langchain/anthropic": "^0.3.26",
     "@langchain/core": "^0.3.69",
     "@langchain/groq": "^0.2.3",
     "@langchain/langgraph": "^0.4.4",
     "@langchain/openai": "^0.6.7",
     "@prisma/client": "6.14.0",
+    "@sei-js/sei-global-wallet": "^1.3.4",
+    "@tanstack/react-query": "^5.85.3",
     "dotenv": "^17.2.1",
     "langchain": "^0.3.30",
     "lucide-react": "^0.539.0",
@@ -27,7 +32,9 @@
     "nodemon": "^3.1.10",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "readline-sync": "^1.4.10"
+    "readline-sync": "^1.4.10",
+    "viem": "^2.33.3",
+    "wagmi": "^2.16.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
