@@ -16,13 +16,26 @@ export default function Home() {
     }
   }, [user, router]);
 
+  // ✅ Custom Wallet Connect Button
+  const WalletButton = () => (
+    <button
+      className="px-5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold shadow-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-200"
+    >
+      {user ? "Connected" : "Connect Wallet"}
+    </button>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
       <Head>
         <title>Code Senpai - AI Assistant for Sei Blockchain Developers</title>
-        <meta name="description" content="RAG-based AI framework to help developers build on Sei blockchain" />
+        <meta
+          name="description"
+          content="RAG-based AI framework to help developers build on Sei blockchain"
+        />
       </Head>
 
+      {/* Header */}
       <header className="sticky top-0 z-50 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
@@ -55,7 +68,8 @@ export default function Home() {
               Chat Interface
             </a>
           </div>
-          <DynamicWidget />
+          {/* ✅ Custom Wallet Button in Header */}
+          <DynamicWidget innerButtonComponent={<WalletButton />} />
         </div>
       </header>
 
@@ -307,7 +321,8 @@ export default function Home() {
                   building on Sei with expert guidance.
                 </p>
                 <div className="w-full items-center flex justify-center">
-                  <DynamicWidget />
+                  {/* ✅ Custom Wallet Button in CTA */}
+                  <DynamicWidget innerButtonComponent={<WalletButton />} />
                 </div>
                 {!user && (
                   <p className="mt-8 text-lg text-gray-400">
@@ -320,6 +335,7 @@ export default function Home() {
         )}
       </main>
 
+      {/* Footer */}
       <footer className="bg-gray-900 border-t border-gray-800 py-8 px-4">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
