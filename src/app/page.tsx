@@ -18,11 +18,11 @@ export default function Home() {
 
   // ✅ Custom Wallet Connect Button
   const WalletButton = () => (
-    <button
+    <div
       className="px-5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold shadow-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-200"
     >
       {user ? "Connected" : "Connect Wallet"}
-    </button>
+    </div>
   );
 
   return (
